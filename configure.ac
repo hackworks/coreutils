@@ -245,6 +245,11 @@ AM_CONDITIONAL([SINGLE_BINARY], [test "$gl_single_binary" != no])
 
 AC_FUNC_FORK
 
+AC_CHECK_FUNCS_ONCE([sendfile])
+if test ac_cv_func_sendfile=yes; then
+	AC_DEFINE([HAVE_SENDFILE])
+fi
+
 optional_bin_progs=
 AC_CHECK_FUNCS([chroot],
         gl_ADD_PROG([optional_bin_progs], [chroot]))

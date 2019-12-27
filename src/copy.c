@@ -110,6 +110,15 @@ rpl_mkfifo (char const *file, mode_t mode)
 # define USE_ACL 0
 #endif
 
+#ifdef HAVE_SENDFILE
+/* BSD sendfile implementation does not support file as target */
+#ifdef __linux__
+#include <sys/sendfile.h>
+#else
+#undef HAVE_SENDFILE
+#endif
+#endif
+
 #define SAME_OWNER(A, B) ((A).st_uid == (B).st_uid)
 #define SAME_GROUP(A, B) ((A).st_gid == (B).st_gid)
 #define SAME_OWNER_AND_GROUP(A, B) (SAME_OWNER (A, B) && SAME_GROUP (A, B))
@@ -1252,6 +1261,20 @@ copy_reg (char const *src_name, char const *dst_name,
 
   if (data_copy_required)
     {
+#ifdef HAVE_SENDFILE
+      ssize_t nb;
+      ssize_t remaining = src_open_sb.st_size;
+      do {
+        nb = sendfile(dest_desc, source_desc, NULL, remaining);
+        if (nb > 0)
+          remaining -= nb;
+      } while ((nb > 0 && remaining > 0) || (nb < 0 && errno == EINTR));
+      return_val = (remaining == 0);
+      if (!return_val)
+        goto close_src_and_dst_desc;
+      goto preserve_metadata;
+#endif
+
       /* Choose a suitable buffer size; it may be adjusted later.  */
       size_t buf_alignment = getpagesize ();
       size_t buf_size = io_blksize (sb);
